@@ -1,0 +1,7 @@
+customtkinter
+pip
+pyautogui
+pyinstaller
+setuptools
+xlsxwriter
+Pillow
