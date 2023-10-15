@@ -434,7 +434,7 @@ class Program(object):
     def change_transparency(self, value: float) -> None:
         transparency = value if value > 0.1 else 0.1
         self._window.wm_attributes("-alpha", transparency)
-        self._ctk_label_transparency_value.configure(text=f"{round(value * 100)}%")
+        self._ctk_label_transparency_value.configure(text=f"{round(transparency * 100)}%")
         self._config.update_configs("UI", "transparency", str(transparency))
 
     def change_theme(self, value: str) -> None:

@@ -1,7 +1,6 @@
-customtkinter
 pip
+setuptools
+customtkinter
 pyautogui
 pyinstaller
-setuptools
 xlsxwriter
-Pillow
