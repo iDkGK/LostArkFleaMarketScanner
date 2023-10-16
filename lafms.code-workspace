@@ -1,0 +1,56 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "launch": {
+        "version": "1.0.0",
+        "configurations": [
+            {
+                "name": "debug",
+                "type": "python",
+                "request": "launch",
+                "cwd": "${workspaceFolder}/",
+                "program": "${workspaceFolder}/main.py",
+                "args": "--debug",
+                "console": "integratedTerminal",
+                "justMyCode": true
+            }
+        ]
+    },
+    "tasks": {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "build: release",
+                "type": "shell",
+                "command": "venv/Scripts/pyinstaller -F main.py -i data/lafms.ico -n LAFMS -w; rm -force LAFMS.spec; rm -recurse -force build; move dist build; copy -recurse data build",
+                "group": {
+                    "kind": "build",
+                    "isDefault": false
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "build: debug",
+                "type": "shell",
+                "command": "venv/Scripts/pyinstaller -F main.py -i data/lafms.ico -n LAFMS; rm -force LAFMS.spec; rm -recurse -force build; move dist build; copy -recurse data build",
+                "group": {
+                    "kind": "build",
+                    "isDefault": false
+                },
+                "problemMatcher": []
+            }
+        ]
+    },
+    "settings": {
+        "window.title": "Lost Ark Flea Market Scanner",
+        "python.analysis.typeCheckingMode": "strict",
+        "[python]": {
+            "editor.defaultFormatter": "ms-python.black-formatter",
+            "editor.formatOnSave": true,
+            "editor.rulers": [80],
+        }
+    }
+}

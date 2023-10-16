@@ -30,9 +30,6 @@ from datetime import (
 from functools import (
     wraps,
 )
-from queue import (
-    Queue,
-)
 from threading import (
     Event,
     Lock,
@@ -43,7 +40,6 @@ from typing import (
     Any,
     Callable,
     Iterable,
-    Literal,
     Mapping,
     Union,
 )
@@ -61,7 +57,7 @@ CONFIG_FILE_NAME = "lars-config.ini"
 DEFAULT_CONFIG_NAME = "defaultconfig.ini"
 TESSEROCR_DATA_PATH = "data/"
 
-THREAD_STOP_SIGNALS: list[Literal["stop"]] = []
+TIME_START_PROGRAM = datetime.now().strftime("%Y%m%d%H%M%S")
 
 
 @overload
@@ -182,8 +178,8 @@ class Program(object):
     _work_lock = Lock()
 
     def __init__(self) -> None:
-        # Elevated privileges
-        self._elevate_privileges()
+        # Hold on screen countdown
+        self._hold_screen()
         # Create main window
         self._create_window()
         # Load configurations
@@ -193,13 +189,7 @@ class Program(object):
         # Initialize worker
         self._setup_worker()
 
-    def _elevate_privileges(self) -> None:
-        if not ctypes.windll.shell32.IsUserAnAdmin():
-            ctypes.windll.shell32.ShellExecuteW(
-                None, "runas", sys.executable, " ".join(sys.argv), None, 1
-            )
-            sys.exit()
-
+    def _hold_screen(self) -> None:
         self._update_display_event = threaded_loop(None)(
             lambda **_: ctypes.windll.kernel32.SetThreadExecutionState(0x00000002)
         )(interval=1)
@@ -343,7 +333,7 @@ class Program(object):
         offsetx = 0.0 if ctk_frame_settings_used_times < 2 else 0.5
         self._ctk_label_segmentedbutton_theme = CTkLabel(
             master=ctk_frame_settings,
-            text="主题设置",
+            text="主题风格",
         )
         self._ctk_label_segmentedbutton_theme.place_configure(
             relwidth=0.15,
@@ -388,7 +378,7 @@ class Program(object):
         )
         self._ctk_label_interval_value = CTkLabel(
             master=ctk_frame_settings,
-            text="24小时",
+            text="1小时",
         )
         self._ctk_label_interval_value.place_configure(
             relwidth=0.1,
@@ -434,7 +424,37 @@ class Program(object):
             ctk_frame_settings_used_times,
         ) = get_available_frame_settings()
         offsetx = 0.0 if ctk_frame_settings_used_times < 2 else 0.5
-        # TODO: add new widgets here
+        self._ctk_label_switch_logger = CTkLabel(
+            master=ctk_frame_settings,
+            text="日志存盘",
+        )
+        self._ctk_label_switch_logger.place_configure(
+            relwidth=0.15,
+            relheight=0.6,
+            relx=offsetx,
+            rely=0.2,
+        )
+        self._ctk_swtich_logger = CTkSwitch(
+            master=ctk_frame_settings,
+            text="",
+            command=self._switch_logger,
+        )
+        self._ctk_swtich_logger.place_configure(
+            relwidth=0.2,
+            relheight=0.6,
+            relx=offsetx + 0.15,
+            rely=0.2,
+        )
+        self._ctk_label_logger_status = CTkLabel(
+            master=ctk_frame_settings,
+            text="启用",
+        )
+        self._ctk_label_logger_status.place_configure(
+            relwidth=0.1,
+            relheight=0.6,
+            relx=offsetx + 0.35,
+            rely=0.2,
+        )
         (
             ctk_frame_settings,
             ctk_frame_settings_used_times,
@@ -499,7 +519,7 @@ class Program(object):
         self._ctk_button_once.configure(
             state="disabled" if self._work_event.is_set() else "normal"
         )
-        self.work_loop(interval=self._config_parser.getint("Worker", "interval"))
+        self.work_loop(interval=self._config_parser.getint("核心", "采集周期"))
 
     def _check_result(self) -> None:
         self.view_data()
@@ -510,7 +530,7 @@ class Program(object):
         self._ctk_label_transparency_value.configure(
             text=f"{round(transparency * 100)}%"
         )
-        self._update_configs("UI", "transparency", str(transparency))
+        self._update_config("界面", "透明度", str(transparency))
 
     def _change_theme(self, value: str) -> None:
         theme = {
@@ -519,14 +539,14 @@ class Program(object):
             "自动": "system",
         }.get(value, "system")
         set_appearance_mode(theme)
-        self._update_configs("UI", "theme", theme)
+        self._update_config("界面", "主题风格", theme)
 
     def _change_interval(self, value: float) -> None:
         intervals = [600, 900, 1800, 3600, 10800, 21600, 43200, 86400]
         for delimiter, interval in enumerate(intervals):
             if (
                 delimiter / 8.0 < value < (delimiter + 1) / 8.0
-                and self._config_parser.getint("Worker", "interval") != interval
+                and self._config_parser.getint("核心", "采集周期") != interval
             ):
                 humanize_interval = (
                     f"{round(interval / 60)}分钟"
@@ -534,7 +554,7 @@ class Program(object):
                     else f"{round(interval / 3600)}小时"
                 )
                 self._ctk_label_interval_value.configure(text=humanize_interval)
-                self._update_configs("Worker", "interval", str(interval))
+                self._update_config("核心", "采集周期", str(interval))
                 self._log_info(f"采集间隔设定为{humanize_interval}，重启“定期采集”后生效")
 
     def _confirm_archive(self) -> None:
@@ -542,20 +562,35 @@ class Program(object):
         try:
             os.makedirs(archive_path, exist_ok=True)
             if os.path.exists(archive_path):
-                self._update_configs("Worker", "archive", archive_path)
+                self._update_config("核心", "存档路径", archive_path)
                 self._log_info(f"存档路径设定为{os.path.abspath(archive_path)}，重启“定期采集”后生效")
         except:
-            self._log_info(f"无法将存档路径设定为{os.path.abspath(archive_path)}")
+            self._log_error(f"无法将存档路径设定为{os.path.abspath(archive_path)}")
+
+    def _switch_logger(self) -> None:
+        self._logger_status = not self._logger_status
+        self._ctk_label_logger_status.configure(
+            text="启用" if self._logger_status else "禁用"
+        )
+        self._ctk_entry_log.configure(
+            state="normal" if self._logger_status else "disabled"
+        )
+        self._ctk_button_log.configure(
+            state="normal" if self._logger_status else "disabled"
+        )
+        self._setup_logger()
+        self._log_info(f"已{'启用' if self._logger_status else '禁用'}日志存盘")
+        self._update_config("全局", "日志存盘", "yes" if self._logger_status else "no")
 
     def _confirm_log(self) -> None:
         log_path = self._ctk_entry_log.get()
         try:
             os.makedirs(log_path, exist_ok=True)
             if os.path.exists(log_path):
-                self._update_configs("Global", "logs", log_path)
+                self._update_config("全局", "日志路径", log_path)
                 self._log_info(f"日志路径设定为{os.path.abspath(log_path)}，重启程序后生效")
         except:
-            self._log_info(f"无法将日志路径设定为{os.path.abspath(log_path)}")
+            self._log_error(f"无法将日志路径设定为{os.path.abspath(log_path)}")
 
     # ----------------------------------------------------------------
     # Config Manager
@@ -567,31 +602,32 @@ class Program(object):
         default_config_path = os.path.join(DATA_PATH, DEFAULT_CONFIG_NAME)
         default_config_parser = ConfigParser()
         if not os.path.exists(default_config_path):
-            with open(default_config_path, "w") as default_config_file:
-                default_config_parser["Global"] = {}
-                default_config_parser["Global"]["logs"] = "logs"
-                default_config_parser["UI"] = {}
-                default_config_parser["UI"]["theme"] = "system"
-                default_config_parser["UI"]["transparency"] = "1.0"
-                default_config_parser["Worker"] = {}
-                default_config_parser["Worker"]["archive"] = "result"
-                default_config_parser["Worker"]["interval"] = "3600"
+            with open(
+                default_config_path, mode="w", encoding="utf-8"
+            ) as default_config_file:
+                default_config_parser["全局"] = {}
+                default_config_parser["全局"]["日志路径"] = "logs"
+                default_config_parser["全局"]["日志存盘"] = "yes"
+                default_config_parser["界面"] = {}
+                default_config_parser["界面"]["主题风格"] = "system"
+                default_config_parser["界面"]["透明度"] = "1.0"
+                default_config_parser["界面"]["窗口位置"] = "640,360"
+                default_config_parser["核心"] = {}
+                default_config_parser["核心"]["存档路径"] = "result"
+                default_config_parser["核心"]["采集周期"] = "3600"
                 default_config_parser.write(default_config_file)
         else:
-            default_config_parser.read(default_config_path)
+            default_config_parser.read(default_config_path, encoding="utf-8")
         if not os.path.exists(self._config_path):
-            with open(self._config_path, "w") as config_file:
+            with open(self._config_path, mode="w", encoding="utf-8") as config_file:
                 default_config_parser.write(config_file)
-        self._config_parser.read(self._config_path)
+        self._config_parser.read(self._config_path, encoding="utf-8")
         # Appearance mode
-        set_appearance_mode(self._config_parser.get("UI", "theme", fallback="system"))
+        set_appearance_mode(self._config_parser.get("界面", "主题风格", fallback="system"))
         # Initialize window
         width, height = 640, 360
-        xanchor, yanchor = (
-            (self._ctk_window.winfo_screenwidth() - width) // 2,
-            (self._ctk_window.winfo_screenheight() - height) // 2,
-        )
-        transparency = self._config_parser.getfloat("UI", "transparency", fallback=1.0)
+        xanchor, yanchor = map(int, self._config_parser.get("界面", "窗口位置").split(","))
+        transparency = self._config_parser.getfloat("界面", "透明度", fallback=1.0)
         self._ctk_window.wm_attributes("-alpha", transparency)
         self._ctk_window.wm_geometry(
             newGeometry=f"{width}x{height}+{xanchor}+{yanchor}"
@@ -599,6 +635,14 @@ class Program(object):
         self._ctk_window.wm_iconbitmap(bitmap=os.path.join(DATA_PATH, ICON_FILE_NAME))
         self._ctk_window.wm_resizable(width=False, height=False)
         self._ctk_window.wm_title(WINDOW_TITLE)
+        self._ctk_window.bind(
+            "<Configure>",
+            lambda _: self._update_config(
+                "界面",
+                "窗口位置",
+                f"{self._ctk_window.winfo_x()},{self._ctk_window.winfo_y()}",
+            ),
+        )
         # Initialize widgets
         self._ctk_progressbar_worker.set(0)
         self._ctk_slider_transparency.set(transparency)
@@ -610,9 +654,9 @@ class Program(object):
                 "light": "明亮",
                 "dark": "灰暗",
                 "system": "自动",
-            }.get(self._config_parser.get("UI", "theme", fallback="system"), "自动")
+            }.get(self._config_parser.get("界面", "主题风格", fallback="system"), "自动")
         )
-        interval = self._config_parser.getint("Worker", "interval")
+        interval = self._config_parser.getint("核心", "采集周期")
         delimiter = [600, 900, 1800, 3600, 10800, 21600, 43200, 86400].index(interval)
         self._ctk_slider_interval.set((delimiter + 0.5) / 8.0)
         self._ctk_label_interval_value.configure(
@@ -620,24 +664,49 @@ class Program(object):
             if delimiter < 3
             else f"{round(interval / 3600)}小时"
         )
-        self._ctk_entry_archive.insert(
-            "end", self._config_parser.get("Worker", "archive")
+        self._ctk_entry_archive.insert("end", self._config_parser.get("核心", "存档路径"))
+        self._logger_status = self._config_parser.getboolean("全局", "日志存盘")
+        self._ctk_swtich_logger.select() if self._logger_status else self._ctk_swtich_logger.deselect()
+        self._ctk_label_logger_status.configure(
+            text="启用" if self._logger_status else "禁用"
         )
-        self._ctk_entry_log.insert("end", self._config_parser.get("Global", "logs"))
+        self._ctk_button_log.configure(
+            state="normal" if self._logger_status else "disabled"
+        )
+        self._ctk_entry_log.insert("end", self._config_parser.get("全局", "日志路径"))
+        self._ctk_entry_log.configure(
+            state="normal" if self._logger_status else "disabled"
+        )
 
-    def _update_configs(self, section: str, option: str, value: str) -> None:
+    def _update_config(self, section: str, option: str, value: str) -> None:
         self._config_parser[section][option] = value
 
     def _save_configs(self) -> None:
-        if not getattr(self, "_config_path", None) is None:
-            with open(self._config_path, "w") as config_file:
-                self._config_parser.write(config_file)
+        with open(self._config_path, mode="w", encoding="utf-8") as config_file:
+            self._config_parser.write(config_file)
 
     # ----------------------------------------------------------------
     # Logger
     def _setup_logger(self) -> None:
-        self._log_path = self._config_parser.get("Global", "logs")
-        self._logger = open(os.path.join(self._log_path, f"lafms.log"), "w")
+        if self._logger_status:
+            log_path = self._config_parser.get("全局", "日志路径")
+            os.makedirs(log_path, exist_ok=True)
+            self._logger = open(
+                os.path.join(
+                    log_path,
+                    f"lafms-{TIME_START_PROGRAM}.log",
+                ),
+                mode="a+",
+                encoding="utf-8",
+            )
+        else:
+
+            class FakeLogger(object):
+                close: Callable[..., None] = lambda *args, **kwargs: None
+                flush: Callable[..., None] = lambda *args, **kwargs: None
+                write: Callable[..., None] = lambda *args, **kwargs: None
+
+            self._logger = FakeLogger()
 
     def _notify_logger(self) -> None:
         self._logger.close()
@@ -662,11 +731,17 @@ class Program(object):
         self._ctk_textbox_log.see("end")
         self._ctk_textbox_log.configure(state="disabled")
         self._logger.write(message)
+        self._logger.flush()
 
     # ----------------------------------------------------------------
     # Worker
     def _setup_worker(self) -> None:
         self._work_event.set()
+        archive_path = self._config_parser.get("核心", "存档路径")
+        try:
+            os.makedirs(archive_path, exist_ok=True)
+        except:
+            self._log_error(f"无法创建存档文件夹{os.path.abspath(archive_path)}")
 
     def _notify_worker(self) -> None:
         self._work_event.clear()
@@ -734,4 +809,9 @@ class Program(object):
 
 
 if __name__ == "__main__":
-    Program().run()
+    if "--debug" in sys.argv or ctypes.windll.shell32.IsUserAnAdmin():
+        Program().run()
+    else:
+        ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", sys.executable, " ".join(sys.argv), None, 1
+        )
