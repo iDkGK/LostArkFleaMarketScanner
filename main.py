@@ -57,7 +57,7 @@ ANNOUNCEMENT = f"""\
 DATA_PATH = "data/"
 ICON_FILE_NAME = "lafms.ico"
 CONFIG_FILE_NAME = "lars-config.ini"
-DEFAULT_CONFIG_NAME = "defaultconfig.ini"
+DEFAULT_CONFIG_NAME = "default-config.ini"
 TESSEROCR_DATA_PATH = "data/"
 
 TIME_START_PROGRAM = datetime.now().strftime("%Y%m%d%H%M%S")
