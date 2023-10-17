@@ -5,7 +5,7 @@ This project is based on **Python 3.11**, and the target executable is generated
 
 ## Developing Requirements
 
-**Python 3.11**
+**Python 3.11**  
 Visual Studio Code
 
 ## Project Structure
