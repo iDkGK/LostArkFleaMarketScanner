@@ -12,6 +12,7 @@ from customtkinter import (  # type: ignore
     CTk,
     CTkButton,
     CTkCheckBox,
+    CTkComboBox,
     CTkEntry,
     CTkFrame,
     CTkLabel,
@@ -440,10 +441,22 @@ class Program(object):
             command=self._switch_logger,
         )
         self._ctk_swtich_logger.place_configure(
-            relwidth=0.2,
+            relwidth=0.075,
             relheight=0.6,
             relx=offsetx + 0.15,
             rely=0.2,
+        )
+        self._ctk_combobox_loglevel = CTkComboBox(
+            master=ctk_frame_settings,
+            state="readonly",
+            values=["信息", "警告", "错误"],
+            command=self._change_loglevel,
+        )
+        self._ctk_combobox_loglevel.place_configure(
+            relwidth=0.125,
+            relheight=0.8,
+            relx=offsetx + 0.225,
+            rely=0.1,
         )
         self._ctk_label_logger_status = CTkLabel(
             master=ctk_frame_settings,
@@ -569,26 +582,61 @@ class Program(object):
 
     def _switch_logger(self) -> None:
         self._logger_status = not self._logger_status
-        self._ctk_label_logger_status.configure(
-            text="启用" if self._logger_status else "禁用"
-        )
-        self._ctk_entry_log.configure(
-            state="normal" if self._logger_status else "disabled"
-        )
-        self._ctk_button_log.configure(
-            state="normal" if self._logger_status else "disabled"
-        )
+        log_level = self._config_parser.get("日志", "日志等级")
         self._setup_logger()
+        match self._logger_status, log_level:
+            case True, "warning":
+                self._ctk_label_logger_status.configure(text="滤除信息")
+                self._ctk_combobox_loglevel.configure(state="readonly")
+                self._ctk_entry_log.configure(state="normal")
+                self._ctk_button_log.configure(state="normal")
+            case True, "error":
+                self._ctk_label_logger_status.configure(text="仅错误")
+                self._ctk_combobox_loglevel.configure(state="readonly")
+                self._ctk_entry_log.configure(state="normal")
+                self._ctk_button_log.configure(state="normal")
+            case False, _:
+                self._ctk_label_logger_status.configure(text="禁用")
+                self._ctk_combobox_loglevel.configure(state="disabled")
+                self._ctk_entry_log.configure(state="disabled")
+                self._ctk_button_log.configure(state="disabled")
+            case _:
+                self._ctk_label_logger_status.configure(text="全部")
+                self._ctk_combobox_loglevel.configure(state="readonly")
+                self._ctk_entry_log.configure(state="normal")
+                self._ctk_button_log.configure(state="normal")
+        self._update_config("日志", "日志存盘", "yes" if self._logger_status else "no")
         self._log_info(f"已{'启用' if self._logger_status else '禁用'}日志存盘")
-        self._update_config("全局", "日志存盘", "yes" if self._logger_status else "no")
+
+    def _change_loglevel(self, value: str) -> None:
+        log_level = {
+            "信息": "info",
+            "警告": "warning",
+            "错误": "error",
+        }.get(value, "info")
+        self._update_config(
+            "日志",
+            "日志等级",
+            log_level,
+        )
+        match log_level:
+            case "warning":
+                self._ctk_label_logger_status.configure(text="滤除信息")
+                self._log_info("仅存盘[警告]和[错误]级别日志")
+            case "error":
+                self._ctk_label_logger_status.configure(text="仅错误")
+                self._log_info("仅存盘[错误]级别日志")
+            case _:
+                self._ctk_label_logger_status.configure(text="全部")
+                self._log_info("存盘所有级别日志")
 
     def _confirm_log(self) -> None:
         log_path = self._ctk_entry_log.get()
         try:
             os.makedirs(log_path, exist_ok=True)
             if os.path.exists(log_path):
-                self._update_config("全局", "日志路径", log_path)
-                self._log_info(f"日志路径设定为{os.path.abspath(log_path)}，重启程序后生效")
+                self._update_config("日志", "日志路径", log_path)
+                self._log_info(f"日志路径设定为{os.path.abspath(log_path)}，重启“日志存盘”后生效")
         except:
             self._log_error(f"无法将日志路径设定为{os.path.abspath(log_path)}")
 
@@ -605,16 +653,17 @@ class Program(object):
             with open(
                 default_config_path, mode="w", encoding="utf-8"
             ) as default_config_file:
-                default_config_parser["全局"] = {}
-                default_config_parser["全局"]["日志路径"] = "logs"
-                default_config_parser["全局"]["日志存盘"] = "yes"
                 default_config_parser["界面"] = {}
-                default_config_parser["界面"]["主题风格"] = "system"
                 default_config_parser["界面"]["透明度"] = "1.0"
+                default_config_parser["界面"]["主题风格"] = "system"
                 default_config_parser["界面"]["窗口位置"] = "640,360"
                 default_config_parser["核心"] = {}
-                default_config_parser["核心"]["存档路径"] = "result"
                 default_config_parser["核心"]["采集周期"] = "3600"
+                default_config_parser["核心"]["存档路径"] = "result"
+                default_config_parser["日志"] = {}
+                default_config_parser["日志"]["日志存盘"] = "yes"
+                default_config_parser["日志"]["日志级别"] = "info"
+                default_config_parser["日志"]["日志路径"] = "logs"
                 default_config_parser.write(default_config_file)
         else:
             default_config_parser.read(default_config_path, encoding="utf-8")
@@ -623,11 +672,11 @@ class Program(object):
                 default_config_parser.write(config_file)
         self._config_parser.read(self._config_path, encoding="utf-8")
         # Appearance mode
-        set_appearance_mode(self._config_parser.get("界面", "主题风格", fallback="system"))
+        set_appearance_mode(self._config_parser.get("界面", "主题风格"))
         # Initialize window
         width, height = 640, 360
         xanchor, yanchor = map(int, self._config_parser.get("界面", "窗口位置").split(","))
-        transparency = self._config_parser.getfloat("界面", "透明度", fallback=1.0)
+        transparency = self._config_parser.getfloat("界面", "透明度")
         self._ctk_window.wm_attributes("-alpha", transparency)
         self._ctk_window.wm_geometry(
             newGeometry=f"{width}x{height}+{xanchor}+{yanchor}"
@@ -654,7 +703,7 @@ class Program(object):
                 "light": "明亮",
                 "dark": "灰暗",
                 "system": "自动",
-            }.get(self._config_parser.get("界面", "主题风格", fallback="system"), "自动")
+            }.get(self._config_parser.get("界面", "主题风格"), "自动")
         )
         interval = self._config_parser.getint("核心", "采集周期")
         delimiter = [600, 900, 1800, 3600, 10800, 21600, 43200, 86400].index(interval)
@@ -665,18 +714,38 @@ class Program(object):
             else f"{round(interval / 3600)}小时"
         )
         self._ctk_entry_archive.insert("end", self._config_parser.get("核心", "存档路径"))
-        self._logger_status = self._config_parser.getboolean("全局", "日志存盘")
+        self._logger_status = self._config_parser.getboolean("日志", "日志存盘")
         self._ctk_swtich_logger.select() if self._logger_status else self._ctk_swtich_logger.deselect()
-        self._ctk_label_logger_status.configure(
-            text="启用" if self._logger_status else "禁用"
+        log_level = self._config_parser.get("日志", "日志等级")
+        self._ctk_combobox_loglevel.set(
+            {
+                "info": "信息",
+                "warning": "警告",
+                "error": "错误",
+            }.get(log_level, "信息")
         )
-        self._ctk_button_log.configure(
-            state="normal" if self._logger_status else "disabled"
-        )
-        self._ctk_entry_log.insert("end", self._config_parser.get("全局", "日志路径"))
-        self._ctk_entry_log.configure(
-            state="normal" if self._logger_status else "disabled"
-        )
+        self._ctk_entry_log.insert("end", self._config_parser.get("日志", "日志路径"))
+        match self._logger_status, log_level:
+            case True, "warning":
+                self._ctk_label_logger_status.configure(text="滤除信息")
+                self._ctk_combobox_loglevel.configure(state="readonly")
+                self._ctk_entry_log.configure(state="normal")
+                self._ctk_button_log.configure(state="normal")
+            case True, "error":
+                self._ctk_label_logger_status.configure(text="仅错误")
+                self._ctk_combobox_loglevel.configure(state="readonly")
+                self._ctk_entry_log.configure(state="normal")
+                self._ctk_button_log.configure(state="normal")
+            case False, _:
+                self._ctk_label_logger_status.configure(text="禁用")
+                self._ctk_combobox_loglevel.configure(state="disabled")
+                self._ctk_entry_log.configure(state="disabled")
+                self._ctk_button_log.configure(state="disabled")
+            case _:
+                self._ctk_label_logger_status.configure(text="全部")
+                self._ctk_combobox_loglevel.configure(state="readonly")
+                self._ctk_entry_log.configure(state="normal")
+                self._ctk_button_log.configure(state="normal")
 
     def _update_config(self, section: str, option: str, value: str) -> None:
         self._config_parser[section][option] = value
@@ -689,7 +758,7 @@ class Program(object):
     # Logger
     def _setup_logger(self) -> None:
         if self._logger_status:
-            log_path = self._config_parser.get("全局", "日志路径")
+            log_path = self._config_parser.get("日志", "日志路径")
             os.makedirs(log_path, exist_ok=True)
             self._logger = open(
                 os.path.join(
@@ -711,9 +780,6 @@ class Program(object):
     def _notify_logger(self) -> None:
         self._logger.close()
 
-    def _log_success(self, text: str) -> None:
-        self._textbox_log(f"[成功]: {text}")
-
     def _log_info(self, text: str) -> None:
         self._textbox_log(f"[信息]: {text}")
 
@@ -724,14 +790,25 @@ class Program(object):
         self._textbox_log(f"[错误]: {text}")
 
     def _textbox_log(self, text: str) -> None:
-        message = f"{datetime.now().time()} {text}\n"
-        print(message, end="")
+        timestamp = datetime.now().time()
+        print(f"{timestamp} {text}\n", end="")
         self._ctk_textbox_log.configure(state="normal")
-        self._ctk_textbox_log.insert(index="end", text=message)
+        self._ctk_textbox_log.insert(index="end", text=f"{timestamp} {text}\n")
         self._ctk_textbox_log.see("end")
         self._ctk_textbox_log.configure(state="disabled")
-        self._logger.write(message)
-        self._logger.flush()
+        if self._logger_status:
+            match self._config_parser.get("日志", "日志等级"):
+                case "warning":
+                    if not text.startswith("[信息]"):
+                        self._logger.write(f"{timestamp} {text}\n")
+                        self._logger.flush()
+                case "error":
+                    if text.startswith("[错误]"):
+                        self._logger.write(f"{timestamp} {text}\n")
+                        self._logger.flush()
+                case _:
+                    self._logger.write(f"{timestamp} {text}\n")
+                    self._logger.flush()
 
     # ----------------------------------------------------------------
     # Worker
