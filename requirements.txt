@@ -2,6 +2,7 @@ pip
 setuptools
 customtkinter
 numpy
+opencv-python
 pyautogui
 pyinstaller
 xlsxwriter
