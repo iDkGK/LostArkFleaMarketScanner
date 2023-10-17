@@ -1,6 +1,7 @@
 pip
 setuptools
 customtkinter
+numpy
 pyautogui
 pyinstaller
 xlsxwriter
