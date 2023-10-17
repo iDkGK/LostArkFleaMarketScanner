@@ -56,7 +56,7 @@ ANNOUNCEMENT = f"""\
 """
 DATA_PATH = "data/"
 ICON_FILE_NAME = "lafms.ico"
-CONFIG_FILE_NAME = "lars-config.ini"
+CONFIG_FILE_NAME = "lafms-config.ini"
 DEFAULT_CONFIG_NAME = "default-config.ini"
 TESSEROCR_DATA_PATH = "data/"
 
