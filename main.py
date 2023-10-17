@@ -5,6 +5,7 @@ import sys
 import tesserocr  # type: ignore
 import tempfile
 import time
+import webbrowser
 from configparser import (
     ConfigParser,
 )
@@ -46,9 +47,10 @@ from typing import (
 )
 
 WINDOW_TITLE = "Lost Ark Flea Market Scanner"
-ANNOUNCEMENT = """\
+PROJECT_URL = "https://github.com/iDkGK/LostArkFleaMarketScanner"
+ANNOUNCEMENT = f"""\
 作者：iDkGK\n\n\
-项目地址：https://github.com/iDkGK/LostArkFleaMarketScanner\n\n\n\n\
+项目地址：{PROJECT_URL}\n\n\n\n\
 本程序禁止用于一切商业用途\n\n\
 使用本程序的风险及后果由使用者自行承担\n\n\n\n\
 """
@@ -746,6 +748,9 @@ class Program(object):
                 self._ctk_combobox_loglevel.configure(state="readonly")
                 self._ctk_entry_log.configure(state="normal")
                 self._ctk_button_log.configure(state="normal")
+        self._ctk_label_announcement.bind(
+            "<Button-1>", lambda *_, **__: webbrowser.open(PROJECT_URL)
+        )
 
     def _update_config(self, section: str, option: str, value: str) -> None:
         self._config_parser[section][option] = value
