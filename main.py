@@ -56,23 +56,27 @@ from typing import (
     Mapping,
     Union,
 )
+from win10toast import (  # type: ignore
+    ToastNotifier,
+)
 
-WINDOW_TITLE = "Lost Ark Flea Market Scanner"
-PROJECT_URL = "https://github.com/iDkGK/LostArkFleaMarketScanner"
-ANNOUNCEMENT = f"""\
+__WINDOW_TITLE__ = "Lost Ark Flea Market Scanner"
+__PROJECT_URL__ = "https://github.com/iDkGK/LostArkFleaMarketScanner"
+__ANNOUNCEMENT__ = f"""\
 作者：iDkGK\n\n\
-项目地址：{PROJECT_URL}\n\n\n\n\
+项目地址：{__PROJECT_URL__}\n\n\n\n\
 本程序禁止用于一切商业用途\n\n\
 使用本程序的风险及后果由使用者自行承担\n\n\n\n\
 """
-DATA_PATH = "data/"
-ICON_FILE_NAME = "lafms.ico"
-CONFIG_FILE_NAME = "lafms-config.ini"
-DEFAULT_CONFIG_NAME = "default-config.ini"
-TESSEROCR_DATA_PATH = "data/"
+__DATA_PATH__ = "data/"
+__ICON_FILE_NAME__ = "lafms.ico"
+__CONFIG_FILE_NAME__ = "lafms-config.ini"
+__DEFAULT_CONFIG_NAME__ = "default-config.ini"
+__TESSEROCR_DATA_PATH__ = "data/"
 
-TIME_START_PROGRAM = datetime.now().strftime("%Y%m%d%H%M%S")
-ASCII_LOWERCASE_LETTERS = dict(enumerate(string.ascii_lowercase))
+__TIME_START_PROGRAM__ = datetime.now().strftime("%Y%m%d%H%M%S")
+__ASCII_LOWERCASE_LETTERS__ = dict(enumerate(string.ascii_lowercase))
+__NOTIFICATION_TOASTER__ = ToastNotifier()
 
 
 @overload
@@ -581,7 +585,7 @@ class Program(object):
         )
         self._ctk_label_announcement = CTkLabel(
             master=self._ctk_tabview_aboutpage,
-            text=ANNOUNCEMENT,
+            text=__ANNOUNCEMENT__,
         )
         self._ctk_label_announcement.place_configure(
             relwidth=1.0,
@@ -737,10 +741,10 @@ class Program(object):
     def _load_configs(self) -> None:
         # Load configurations
         temp_dir = tempfile.gettempdir()
-        self._config_path = os.path.join(temp_dir, CONFIG_FILE_NAME)
+        self._config_path = os.path.join(temp_dir, __CONFIG_FILE_NAME__)
         print(self._config_path)
         self._config_parser = ConfigParser()
-        default_config_path = os.path.join(DATA_PATH, DEFAULT_CONFIG_NAME)
+        default_config_path = os.path.join(__DATA_PATH__, __DEFAULT_CONFIG_NAME__)
         default_config_parser = ConfigParser()
         if not os.path.exists(default_config_path):
             with open(
@@ -774,9 +778,11 @@ class Program(object):
         self._ctk_window.wm_geometry(
             newGeometry=f"{width}x{height}+{xanchor}+{yanchor}"
         )
-        self._ctk_window.wm_iconbitmap(bitmap=os.path.join(DATA_PATH, ICON_FILE_NAME))
+        self._ctk_window.wm_iconbitmap(
+            bitmap=os.path.join(__DATA_PATH__, __ICON_FILE_NAME__)
+        )
         self._ctk_window.wm_resizable(width=False, height=False)
-        self._ctk_window.wm_title(WINDOW_TITLE)
+        self._ctk_window.wm_title(__WINDOW_TITLE__)
         self._ctk_window.bind(
             "<Configure>",
             lambda _: self._update_config(
@@ -846,7 +852,7 @@ class Program(object):
         self._ctk_label_hkauto.configure(text=hotkey_auto)
         keyboard.register_hotkey(hotkey_auto, self._ctk_swtich_auto.toggle)
         self._ctk_label_announcement.bind(
-            "<Button-1>", lambda *_, **__: webbrowser.open(PROJECT_URL)
+            "<Button-1>", lambda *_, **__: webbrowser.open(__PROJECT_URL__)
         )
 
     def _update_config(self, section: str, option: str, value: str) -> None:
@@ -865,7 +871,7 @@ class Program(object):
             self._logger = open(
                 os.path.join(
                     log_path,
-                    f"lafms-{TIME_START_PROGRAM}.log",
+                    f"lafms-{__TIME_START_PROGRAM__}.log",
                 ),
                 mode="a+",
                 encoding="utf-8",
@@ -1025,14 +1031,12 @@ class Program(object):
     @threaded(_work_event)
     def work_once(self) -> None:
         if self._work_lock.acquire(blocking=False):
-            self._log_info("开始采集数据")
             self._collect()
             self._work_lock.release()
 
     @threaded_loop(_work_event)
     def work_loop(self, interval: int) -> None:
         if self._work_lock.acquire(blocking=False):
-            self._log_info("开始采集数据")
             self._collect()
             self._work_lock.release()
         self._update_countdown(interval)
@@ -1069,8 +1073,14 @@ class Program(object):
 
     def _collect(self) -> None:
         """TODO: Implement this method for data collecting."""
-        todo = "待实现"
-        self._log_warning(todo)
+        __NOTIFICATION_TOASTER__.show_toast(
+            "Lost Ark Flea Market Scanner",
+            "开始采集数据",
+            os.path.join(__DATA_PATH__, __ICON_FILE_NAME__),
+            threaded=True,
+        )
+        self._log_info("开始采集数据")
+        self._log_warning("待实现")
         # result = tesserocr.file_to_text(filename=image_path, path=TESSEROCR_DATA_PATH)
         # self._ctk_textbox.configure(state="normal")
         # self._ctk_textbox.insert(index="end", text=image_path)
