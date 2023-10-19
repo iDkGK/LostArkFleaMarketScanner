@@ -30,5 +30,5 @@ requirements.txt
 2. Start a new **Terminal** and execute `python -m venv venv`
 3. Change the default **Python Interpreter** to the one in *venv*
 4. Start a **Terminal**, execute `python -m pip install -Ur requirements.txt`
-5. In **Terminal**, execute `pip install .\whls\opencv_python-4.5.5-cp311-cp311-win_amd64.whl` and `pip install .\whls\tesserocr-2.6.0-cp311-cp311-win_amd64.whl`
+5. In **Terminal**, execute `pip install .\whls\tesserocr-2.6.0-cp311-cp311-win_amd64.whl`
 6. Click **Terminal** -> **Run Build Task...** -> **build: debug**
