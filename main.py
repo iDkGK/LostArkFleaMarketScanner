@@ -1,6 +1,9 @@
 import ctypes
+import keyboard
+import mouse  # type: ignore
 import os
 import pyautogui  # type: ignore
+import string
 import sys
 import tesserocr  # type: ignore
 import tempfile
@@ -10,6 +13,7 @@ from configparser import (
     ConfigParser,
 )
 from customtkinter import (  # type: ignore
+    set_appearance_mode,
     CTk,
     CTkButton,
     CTkCheckBox,
@@ -24,13 +28,20 @@ from customtkinter import (  # type: ignore
     CTkSwitch,
     CTkTabview,
     CTkTextbox,
-    set_appearance_mode,
 )
 from datetime import (
     datetime,
 )
 from functools import (
     wraps,
+)
+from keyboard import (
+    KeyboardEvent,
+)
+from mouse import (  # type: ignore
+    WheelEvent,
+    MoveEvent,
+    ButtonEvent,
 )
 from threading import (
     Event,
@@ -61,6 +72,7 @@ DEFAULT_CONFIG_NAME = "default-config.ini"
 TESSEROCR_DATA_PATH = "data/"
 
 TIME_START_PROGRAM = datetime.now().strftime("%Y%m%d%H%M%S")
+ASCII_LOWERCASE_LETTERS = dict(enumerate(string.ascii_lowercase))
 
 
 @overload
@@ -85,7 +97,7 @@ def threaded(event: Union[Event, None] = None) -> Callable[..., Callable[..., An
             *args: Iterable[Any],
             **kwargs: Mapping[str, Any],
         ):
-            if not event is None and not event.is_set():
+            if event is not None and not event.is_set():
                 return
             Thread(
                 target=function_or_method,
@@ -123,7 +135,7 @@ def threaded_loop(
             *args: Iterable[Any],
             **kwargs: Mapping[str, Any],
         ):
-            if not event is None:
+            if event is not None:
                 if event.is_set():
                     event.clear()
                 else:
@@ -131,9 +143,9 @@ def threaded_loop(
                 if event.is_set():
                     return
 
-                def task():
+                def task() -> None:
                     next_time = interval + time.time()
-                    assert not event is None
+                    assert event is not None
                     while not event.wait(next_time - time.time()):
                         next_time += interval
                         function_or_method(*args, **kwargs)
@@ -151,7 +163,7 @@ def threaded_loop(
                 ).start()
             else:
 
-                def task():
+                def task() -> None:
                     next_time = interval + time.time()
                     while not task_event.wait(next_time - time.time()):
                         next_time += interval
@@ -189,17 +201,19 @@ class Program(object):
         self._load_configs()
         # Setup logger util
         self._setup_logger()
+        # Setup key listener
+        self._setup_listener()
         # Initialize worker
         self._setup_worker()
 
     def _hold_screen(self) -> None:
-        self._update_display_event = threaded_loop(None)(
+        threaded_loop(None)(
             lambda **_: ctypes.windll.kernel32.SetThreadExecutionState(0x00000002)
         )(interval=1)
 
     def _create_window(self) -> None:
         self._ctk_window = CTk()
-        self._ctk_tabview = CTkTabview(master=self._ctk_window)
+        self._ctk_tabview = CTkTabview(master=self._ctk_window, fg_color="transparent")
         self._ctk_tabview.place_configure(relwidth=1.0, relheight=1.0)
         self._ctk_tabview_mainpage = self._ctk_tabview.add("主页")
         self._ctk_tabview_settings = self._ctk_tabview.add("设置")
@@ -408,7 +422,7 @@ class Program(object):
             master=ctk_frame_settings, placeholder_text="输入存档路径"
         )
         self._ctk_entry_archive.place_configure(
-            relwidth=0.2,
+            relwidth=0.175,
             relheight=0.8,
             relx=offsetx + 0.15,
             rely=0.1,
@@ -417,9 +431,9 @@ class Program(object):
             master=ctk_frame_settings, text="确认", command=self._confirm_archive
         )
         self._ctk_button_archive.place_configure(
-            relwidth=0.075,
+            relwidth=0.1,
             relheight=0.8,
-            relx=offsetx + 0.375,
+            relx=offsetx + 0.35,
             rely=0.1,
         )
         (
@@ -489,7 +503,7 @@ class Program(object):
             master=ctk_frame_settings, placeholder_text="输入日志路径"
         )
         self._ctk_entry_log.place_configure(
-            relwidth=0.2,
+            relwidth=0.175,
             relheight=0.8,
             relx=offsetx + 0.15,
             rely=0.1,
@@ -498,9 +512,71 @@ class Program(object):
             master=ctk_frame_settings, text="确认", command=self._confirm_log
         )
         self._ctk_button_log.place_configure(
-            relwidth=0.075,
+            relwidth=0.1,
             relheight=0.8,
-            relx=offsetx + 0.375,
+            relx=offsetx + 0.35,
+            rely=0.1,
+        )
+        (
+            ctk_frame_settings,
+            ctk_frame_settings_used_times,
+        ) = get_available_frame_settings()
+        offsetx = 0.0 if ctk_frame_settings_used_times < 2 else 0.5
+        self._ctk_label_label_hkonce = CTkLabel(
+            master=ctk_frame_settings,
+            text="单次采集",
+        )
+        self._ctk_label_label_hkonce.place_configure(
+            relwidth=0.15,
+            relheight=0.6,
+            relx=offsetx,
+            rely=0.2,
+        )
+        self._ctk_label_hkonce = CTkLabel(master=ctk_frame_settings, text="")
+        self._ctk_label_hkonce.place_configure(
+            relwidth=0.175,
+            relheight=0.8,
+            relx=offsetx + 0.15,
+            rely=0.1,
+        )
+        self._ctk_button_hkonce = CTkButton(
+            master=ctk_frame_settings, text="修改", command=self._bind_ksonce
+        )
+        self._ctk_button_hkonce.place_configure(
+            relwidth=0.1,
+            relheight=0.8,
+            relx=offsetx + 0.35,
+            rely=0.1,
+        )
+        (
+            ctk_frame_settings,
+            ctk_frame_settings_used_times,
+        ) = get_available_frame_settings()
+        offsetx = 0.0 if ctk_frame_settings_used_times < 2 else 0.5
+        self._ctk_label_label_hkauto = CTkLabel(
+            master=ctk_frame_settings,
+            text="定期采集",
+        )
+        self._ctk_label_label_hkauto.place_configure(
+            relwidth=0.15,
+            relheight=0.6,
+            relx=offsetx,
+            rely=0.2,
+        )
+        self._ctk_label_hkauto = CTkLabel(master=ctk_frame_settings, text="")
+        self._ctk_label_hkauto.place_configure(
+            relwidth=0.175,
+            relheight=0.8,
+            relx=offsetx + 0.15,
+            rely=0.1,
+        )
+        self._ctk_button_hkauto = CTkButton(
+            master=ctk_frame_settings, text="修改", command=self._bind_ksauto
+        )
+        self._ctk_button_hkauto.place_configure(
+            relwidth=0.1,
+            relheight=0.8,
+            relx=offsetx + 0.35,
             rely=0.1,
         )
         self._ctk_label_announcement = CTkLabel(
@@ -515,10 +591,10 @@ class Program(object):
         )
 
     def _post_run(self) -> None:
-        self._update_display_event.set()
+        self._stop_worker()
+        self._stop_listener()
+        self._stop_logger()
         self._save_configs()
-        self._notify_logger()
-        self._notify_worker()
 
     def run(self) -> None:
         self._ctk_window.update()
@@ -642,12 +718,27 @@ class Program(object):
         except:
             self._log_error(f"无法将日志路径设定为{os.path.abspath(log_path)}")
 
+    def _bind_ksonce(self) -> None:
+        self._config_queuing = ("热键", "单次采集")
+        self._callback_queuing = self._ctk_button_once.invoke
+        self._ctk_label_hotkey_queuing = self._ctk_label_hkonce
+        self._ctk_button_hotkey_queuing = self._ctk_button_hkonce
+        self._notify_listener()
+
+    def _bind_ksauto(self) -> None:
+        self._config_queuing = ("热键", "定期采集")
+        self._callback_queuing = self._ctk_swtich_auto.toggle
+        self._ctk_label_hotkey_queuing = self._ctk_label_hkauto
+        self._ctk_button_hotkey_queuing = self._ctk_button_hkauto
+        self._notify_listener()
+
     # ----------------------------------------------------------------
     # Config Manager
     def _load_configs(self) -> None:
         # Load configurations
         temp_dir = tempfile.gettempdir()
         self._config_path = os.path.join(temp_dir, CONFIG_FILE_NAME)
+        print(self._config_path)
         self._config_parser = ConfigParser()
         default_config_path = os.path.join(DATA_PATH, DEFAULT_CONFIG_NAME)
         default_config_parser = ConfigParser()
@@ -748,6 +839,12 @@ class Program(object):
                 self._ctk_combobox_loglevel.configure(state="readonly")
                 self._ctk_entry_log.configure(state="normal")
                 self._ctk_button_log.configure(state="normal")
+        hotkey_once = self._config_parser.get("热键", "单次采集")
+        self._ctk_label_hkonce.configure(text=hotkey_once)
+        keyboard.register_hotkey(hotkey_once, self._ctk_button_once.invoke)
+        hotkey_auto = self._config_parser.get("热键", "定期采集")
+        self._ctk_label_hkauto.configure(text=hotkey_auto)
+        keyboard.register_hotkey(hotkey_auto, self._ctk_swtich_auto.toggle)
         self._ctk_label_announcement.bind(
             "<Button-1>", lambda *_, **__: webbrowser.open(PROJECT_URL)
         )
@@ -782,16 +879,16 @@ class Program(object):
 
             self._logger = FakeLogger()
 
-    def _notify_logger(self) -> None:
+    def _stop_logger(self) -> None:
         self._logger.close()
 
-    def _log_info(self, text: str) -> None:
+    def _log_info(self, text: Any) -> None:
         self._textbox_log(f"[信息]: {text}")
 
-    def _log_warning(self, text: str) -> None:
+    def _log_warning(self, text: Any) -> None:
         self._textbox_log(f"[警告]: {text}")
 
-    def _log_error(self, text: str) -> None:
+    def _log_error(self, text: Any) -> None:
         self._textbox_log(f"[错误]: {text}")
 
     def _textbox_log(self, text: str) -> None:
@@ -816,6 +913,101 @@ class Program(object):
                     self._logger.flush()
 
     # ----------------------------------------------------------------
+    # Listener
+    def _setup_listener(self) -> None:
+        self._listener_lock = Lock()
+        self._config_queuing = None
+        self._callback_queuing = None
+        self._ctk_label_hotkey_queuing = None
+        self._ctk_button_hotkey_queuing = None
+
+    def _notify_listener(self) -> None:
+        def watch_keyboard(keyboard_event: KeyboardEvent):
+            nonlocal keys_down_count
+            key_name = (
+                keyboard_event.name.lower()
+                if keyboard_event.name is not None
+                and all(
+                    map(
+                        lambda char: char in f"{string.ascii_letters} {string.digits}",
+                        keyboard_event.name,
+                    )
+                )
+                else "无效"
+            )
+            if key_name != "无效":
+                match keyboard_event.event_type:
+                    case keyboard.KEY_DOWN:
+                        if key_name not in keys_down_list:
+                            keys_down_list.append(key_name)
+                            keys_down_count += 1
+                            if self._ctk_label_hotkey_queuing is not None:
+                                self._ctk_label_hotkey_queuing.configure(
+                                    text=keyboard.get_hotkey_name(keys_down_list)
+                                )
+                    case _:
+                        if key_name in keys_down_list:
+                            keys_down_count -= 1
+                            if keys_down_count == 0:
+                                hotkey_name = keyboard.get_hotkey_name(keys_down_list)
+                                if self._ctk_button_hotkey_queuing is not None:
+                                    self._ctk_button_hotkey_queuing.configure(
+                                        state="normal"
+                                    )
+                                if self._config_queuing is not None:
+                                    keyboard.unregister_hotkey(
+                                        self._config_parser.get(*self._config_queuing)
+                                    )
+                                    self._update_config(
+                                        *self._config_queuing,
+                                        hotkey_name,
+                                    )
+                                if self._callback_queuing is not None:
+                                    keyboard.register_hotkey(
+                                        hotkey_name, self._callback_queuing
+                                    )
+                                self._config_queuing = None
+                                self._callback_queuing = None
+                                self._ctk_label_hotkey_queuing = None
+                                self._ctk_button_hotkey_queuing = None
+                                keys_down_list.clear()
+                                keyboard.unhook(watch_keyboard)
+                                mouse.unhook(watch_mouse)
+                                if self._listener_lock.locked():
+                                    self._listener_lock.release()
+
+        def watch_mouse(mouse_event: Union[ButtonEvent, MoveEvent, WheelEvent]):
+            nonlocal keys_down_count
+            if (
+                isinstance(mouse_event, ButtonEvent)
+                and mouse_event.event_type == mouse.DOWN
+            ):
+                if self._ctk_button_hotkey_queuing is not None:
+                    self._ctk_button_hotkey_queuing.configure(state="normal")
+                self._config_queuing = None
+                self._callback_queuing = None
+                self._ctk_label_hotkey_queuing = None
+                self._ctk_button_hotkey_queuing = None
+                keys_down_list.clear()
+                keys_down_count = 0
+                keyboard.unhook(watch_keyboard)
+                mouse.unhook(watch_mouse)
+                if self._listener_lock.locked():
+                    self._listener_lock.release()
+
+        if self._listener_lock.acquire(blocking=False):
+            if self._ctk_button_hotkey_queuing is not None:
+                self._ctk_button_hotkey_queuing.configure(state="disabled")
+            keys_down_list: list[Union[str, None]] = []
+            keys_down_count = 0
+            keyboard.hook(watch_keyboard)
+            mouse.hook(watch_mouse)
+
+    def _stop_listener(self) -> None:
+        if self._listener_lock.locked():
+            self._listener_lock.release()
+
+    # ----------------------------------------------------------------
     # Worker
     def _setup_worker(self) -> None:
         self._work_event.set()
@@ -825,7 +1017,7 @@ class Program(object):
         except:
             self._log_error(f"无法创建存档文件夹{os.path.abspath(archive_path)}")
 
-    def _notify_worker(self) -> None:
+    def _stop_worker(self) -> None:
         self._work_event.clear()
         if self._work_lock.locked():
             self._work_lock.release()

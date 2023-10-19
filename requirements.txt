@@ -1,7 +1,9 @@
 pip
 setuptools
 customtkinter
+keyboard
 numpy
+mouse
 opencv-python
 pyautogui
 pyinstaller
