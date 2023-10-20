@@ -31,6 +31,7 @@ from customtkinter import (  # type: ignore
 )
 from datetime import (
     datetime,
+    timedelta,
 )
 from functools import (
     wraps,
@@ -742,7 +743,6 @@ class Program(object):
         # Load configurations
         temp_dir = tempfile.gettempdir()
         self._config_path = os.path.join(temp_dir, __CONFIG_FILE_NAME__)
-        print(self._config_path)
         self._config_parser = ConfigParser()
         default_config_path = os.path.join(__DATA_PATH__, __DEFAULT_CONFIG_NAME__)
         default_config_parser = ConfigParser()
@@ -955,6 +955,8 @@ class Program(object):
                         if key_name in keys_down_list:
                             keys_down_count -= 1
                             if keys_down_count == 0:
+                                mouse.unhook(watch_mouse)
+                                keyboard.unhook(watch_keyboard)
                                 hotkey_name = keyboard.get_hotkey_name(keys_down_list)
                                 if self._ctk_button_hotkey_queuing is not None:
                                     self._ctk_button_hotkey_queuing.configure(
@@ -977,17 +979,17 @@ class Program(object):
                                 self._ctk_label_hotkey_queuing = None
                                 self._ctk_button_hotkey_queuing = None
                                 keys_down_list.clear()
-                                keyboard.unhook(watch_keyboard)
-                                mouse.unhook(watch_mouse)
                                 if self._listener_lock.locked():
                                     self._listener_lock.release()
 
         def watch_mouse(mouse_event: Union[ButtonEvent, MoveEvent, WheelEvent]):
             nonlocal keys_down_count
-            if (
-                isinstance(mouse_event, ButtonEvent)
-                and mouse_event.event_type == mouse.DOWN
+            if isinstance(mouse_event, ButtonEvent) and (
+                mouse_event.event_type == mouse.DOWN
+                or mouse_event.event_type == mouse.DOUBLE
             ):
+                mouse.unhook(watch_mouse)
+                keyboard.unhook(watch_keyboard)
                 if self._ctk_button_hotkey_queuing is not None:
                     self._ctk_button_hotkey_queuing.configure(state="normal")
                 self._config_queuing = None
@@ -996,22 +998,22 @@ class Program(object):
                 self._ctk_button_hotkey_queuing = None
                 keys_down_list.clear()
                 keys_down_count = 0
-                keyboard.unhook(watch_keyboard)
-                mouse.unhook(watch_mouse)
                 if self._listener_lock.locked():
                     self._listener_lock.release()
 
         if self._listener_lock.acquire(blocking=False):
+            mouse.hook(watch_mouse)
+            keyboard.hook(watch_keyboard)
             if self._ctk_button_hotkey_queuing is not None:
                 self._ctk_button_hotkey_queuing.configure(state="disabled")
             keys_down_list: list[Union[str, None]] = []
             keys_down_count = 0
-            keyboard.hook(watch_keyboard)
-            mouse.hook(watch_mouse)
 
     def _stop_listener(self) -> None:
         if self._listener_lock.locked():
             self._listener_lock.release()
+        mouse.unhook_all()
+        keyboard.unhook_all()
 
     # ----------------------------------------------------------------
     # Worker
@@ -1049,25 +1051,11 @@ class Program(object):
 
     @threaded()
     def _update_countdown(self, interval: int) -> None:
-        self._ctk_progressbar_worker.set(0)
-        self._ctk_label_countdown.configure(
-            text="{:02}:{:02}:{:02}".format(
-                round(interval // 3600),
-                round(interval % 3600 // 60),
-                round(interval % 60),
-            )
-        )
         next_time = time.time() + interval
-        while next_time > time.time() and not self._work_event.wait(1):
+        while next_time > time.time() and not self._work_event.wait(0.1):
             count_down = next_time - time.time()
             self._ctk_progressbar_worker.set(1 - count_down / interval)
-            self._ctk_label_countdown.configure(
-                text="{:02}:{:02}:{:02}".format(
-                    round(count_down // 3600),
-                    round(count_down % 3600 // 60),
-                    round(count_down % 60),
-                )
-            )
+            self._ctk_label_countdown.configure(text=timedelta(seconds=int(count_down)))
         self._ctk_progressbar_worker.set(0)
         self._ctk_label_countdown.configure(text="00:00:00")
 
