@@ -846,11 +846,17 @@ class Program(object):
                 self._ctk_entry_log.configure(state="normal")
                 self._ctk_button_log.configure(state="normal")
         hotkey_once = self._config_parser.get("热键", "单次采集")
-        self._ctk_label_hkonce.configure(text=hotkey_once)
-        keyboard.register_hotkey(hotkey_once, self._ctk_button_once.invoke)
+        if hotkey_once == "":
+            self._ctk_label_hkonce.configure(text="未绑定")
+        else:
+            self._ctk_label_hkonce.configure(text=hotkey_once)
+            keyboard.register_hotkey(hotkey_once, self._ctk_button_once.invoke)
         hotkey_auto = self._config_parser.get("热键", "定期采集")
-        self._ctk_label_hkauto.configure(text=hotkey_auto)
-        keyboard.register_hotkey(hotkey_auto, self._ctk_swtich_auto.toggle)
+        if hotkey_auto == "":
+            self._ctk_label_hkauto.configure(text="未绑定")
+        else:
+            self._ctk_label_hkauto.configure(text=hotkey_auto)
+            keyboard.register_hotkey(hotkey_auto, self._ctk_swtich_auto.toggle)
         self._ctk_label_announcement.bind(
             "<Button-1>", lambda *_, **__: webbrowser.open(__PROJECT_URL__)
         )
@@ -958,14 +964,7 @@ class Program(object):
                                 mouse.unhook(watch_mouse)
                                 keyboard.unhook(watch_keyboard)
                                 hotkey_name = keyboard.get_hotkey_name(keys_down_list)
-                                if self._ctk_button_hotkey_queuing is not None:
-                                    self._ctk_button_hotkey_queuing.configure(
-                                        state="normal"
-                                    )
                                 if self._config_queuing is not None:
-                                    keyboard.unregister_hotkey(
-                                        self._config_parser.get(*self._config_queuing)
-                                    )
                                     self._update_config(
                                         *self._config_queuing,
                                         hotkey_name,
@@ -973,6 +972,10 @@ class Program(object):
                                 if self._callback_queuing is not None:
                                     keyboard.register_hotkey(
                                         hotkey_name, self._callback_queuing
+                                    )
+                                if self._ctk_button_hotkey_queuing is not None:
+                                    self._ctk_button_hotkey_queuing.configure(
+                                        state="normal"
                                     )
                                 self._config_queuing = None
                                 self._callback_queuing = None
@@ -990,6 +993,8 @@ class Program(object):
             ):
                 mouse.unhook(watch_mouse)
                 keyboard.unhook(watch_keyboard)
+                if self._ctk_label_hotkey_queuing is not None:
+                    self._ctk_label_hotkey_queuing.configure(text="未绑定")
                 if self._ctk_button_hotkey_queuing is not None:
                     self._ctk_button_hotkey_queuing.configure(state="normal")
                 self._config_queuing = None
@@ -1004,8 +1009,15 @@ class Program(object):
         if self._listener_lock.acquire(blocking=False):
             mouse.hook(watch_mouse)
             keyboard.hook(watch_keyboard)
+            if self._config_queuing is not None:
+                hotkey_original = self._config_parser.get(*self._config_queuing)
+                if hotkey_original != "":
+                    keyboard.unregister_hotkey(hotkey_original)
+            if self._ctk_label_hotkey_queuing is not None:
+                self._ctk_label_hotkey_queuing.configure(text="请按下组合键")
             if self._ctk_button_hotkey_queuing is not None:
                 self._ctk_button_hotkey_queuing.configure(state="disabled")
+            self._update_config(*self._config_queuing, "")
             keys_down_list: list[Union[str, None]] = []
             keys_down_count = 0
 
