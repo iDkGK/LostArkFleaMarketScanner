@@ -5,7 +5,6 @@ import os
 import pyautogui  # type: ignore
 import string
 import sys
-import tesserocr  # type: ignore
 import tempfile
 import time
 import webbrowser
@@ -73,7 +72,6 @@ __DATA_PATH__ = "data/"
 __ICON_FILE_NAME__ = "lafms.ico"
 __CONFIG_FILE_NAME__ = "lafms-config.ini"
 __DEFAULT_CONFIG_NAME__ = "default-config.ini"
-__TESSEROCR_DATA_PATH__ = "data/"
 
 __TIME_START_PROGRAM__ = datetime.now().strftime("%Y%m%d%H%M%S")
 __ASCII_LOWERCASE_LETTERS__ = dict(enumerate(string.ascii_lowercase))
@@ -1081,15 +1079,6 @@ class Program(object):
         )
         self._log_info("开始采集数据")
         self._log_warning("待实现")
-        # result = tesserocr.file_to_text(filename=image_path, path=TESSEROCR_DATA_PATH)
-        # self._ctk_textbox.configure(state="normal")
-        # self._ctk_textbox.insert(index="end", text=image_path)
-        # self._ctk_textbox.insert(index="end", text=result)
-        # if self._ctk_textbox.yview()[1] > 0.9:
-        #     self._ctk_textbox.see("end")
-        # self._ctk_textbox.configure(state="disabled")
-        # print(image_path)
-        # print(result)
 
 
 if __name__ == "__main__":

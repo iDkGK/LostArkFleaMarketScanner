@@ -7,4 +7,6 @@ mouse
 opencv-python
 pyautogui
 pyinstaller
+qqocr
+win10toast
 xlsxwriter
