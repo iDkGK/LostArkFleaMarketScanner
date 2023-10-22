@@ -43,6 +43,9 @@ from mouse import (  # type: ignore
     MoveEvent,
     ButtonEvent,
 )
+from screen_ocr import (
+    Reader,
+)
 from threading import (
     Event,
     Lock,

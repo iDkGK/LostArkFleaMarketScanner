@@ -2,11 +2,10 @@ pip
 setuptools
 customtkinter
 keyboard
-numpy
 mouse
 opencv-python
 pyautogui
 pyinstaller
-qqocr
+screen-ocr[winrt]
 win10toast
 xlsxwriter
