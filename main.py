@@ -951,7 +951,11 @@ class Program(object):
             if key_name != "无效":
                 match keyboard_event.event_type:
                     case keyboard.KEY_DOWN:
-                        if key_name not in keys_down_list:
+                        if (
+                            len(keys_down_list) < 4
+                            and keys_down_count < 4
+                            and key_name not in keys_down_list
+                        ):
                             keys_down_list.append(key_name)
                             keys_down_count += 1
                             if self._ctk_label_hotkey_queuing is not None:
