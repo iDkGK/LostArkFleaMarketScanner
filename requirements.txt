@@ -6,6 +6,6 @@ mouse
 opencv-python
 pyautogui
 pyinstaller
-screen-ocr[winrt]
+# screen-ocr[winrt]
 win10toast
 xlsxwriter
