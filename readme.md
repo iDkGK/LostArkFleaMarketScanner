@@ -13,9 +13,7 @@ Visual Studio Code
 ```bash
 data/
   images/
-  chi_sim.traineddata
   default-config.ini
-  eng.traineddata
   lafms.ico
 .gitignore
 lafms.code-workspace
