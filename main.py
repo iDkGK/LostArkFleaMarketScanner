@@ -662,10 +662,10 @@ class Program(object):
             self._log_error(f"无法将存档路径设定为{os.path.abspath(archive_path)}")
 
     def _switch_logger(self) -> None:
-        self._logger_status = not self._logger_status
+        logger_status = not self._config_parser.get("日志", "日志存盘")
         log_level = self._config_parser.get("日志", "日志等级")
         self._setup_logger()
-        match self._logger_status, log_level:
+        match logger_status, log_level:
             case True, "warning":
                 self._ctk_label_logger_status.configure(text="滤除信息")
                 self._ctk_combobox_loglevel.configure(state="readonly")
@@ -686,8 +686,8 @@ class Program(object):
                 self._ctk_combobox_loglevel.configure(state="readonly")
                 self._ctk_entry_log.configure(state="normal")
                 self._ctk_button_log.configure(state="normal")
-        self._update_config("日志", "日志存盘", "yes" if self._logger_status else "no")
-        self._log_info(f"已{'启用' if self._logger_status else '禁用'}日志存盘")
+        self._update_config("日志", "日志存盘", "yes" if logger_status else "no")
+        self._log_info(f"已{'启用' if logger_status else '禁用'}日志存盘")
 
     def _change_loglevel(self, value: str) -> None:
         log_level = {
@@ -811,8 +811,8 @@ class Program(object):
             else f"{round(interval / 3600)}小时"
         )
         self._ctk_entry_archive.insert("end", self._config_parser.get("核心", "存档路径"))
-        self._logger_status = self._config_parser.getboolean("日志", "日志存盘")
-        self._ctk_swtich_logger.select() if self._logger_status else self._ctk_swtich_logger.deselect()
+        logger_status = self._config_parser.getboolean("日志", "日志存盘")
+        self._ctk_swtich_logger.select() if logger_status else self._ctk_swtich_logger.deselect()
         log_level = self._config_parser.get("日志", "日志等级")
         self._ctk_combobox_loglevel.set(
             {
@@ -822,7 +822,7 @@ class Program(object):
             }.get(log_level, "信息")
         )
         self._ctk_entry_log.insert("end", self._config_parser.get("日志", "日志路径"))
-        match self._logger_status, log_level:
+        match logger_status, log_level:
             case True, "warning":
                 self._ctk_label_logger_status.configure(text="滤除信息")
                 self._ctk_combobox_loglevel.configure(state="readonly")
@@ -869,7 +869,7 @@ class Program(object):
     # ----------------------------------------------------------------
     # Logger
     def _setup_logger(self) -> None:
-        if self._logger_status:
+        if self._config_parser.get("日志", "日志存盘"):
             log_path = self._config_parser.get("日志", "日志路径")
             os.makedirs(log_path, exist_ok=True)
             self._logger = open(
@@ -908,7 +908,7 @@ class Program(object):
         self._ctk_textbox_log.insert(index="end", text=f"{timestamp} {text}\n")
         self._ctk_textbox_log.see("end")
         self._ctk_textbox_log.configure(state="disabled")
-        if self._logger_status:
+        if self._config_parser.get("日志", "日志存盘"):
             match self._config_parser.get("日志", "日志等级"):
                 case "warning":
                     if not text.startswith("[信息]"):
