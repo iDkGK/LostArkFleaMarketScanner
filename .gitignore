@@ -1,8 +1,9 @@
+.venv
+.vscode
 build
 dist
 logs
 result
 test
-venv
 *.spec
 *.whl

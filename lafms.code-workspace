@@ -25,7 +25,7 @@
             {
                 "label": "build: release",
                 "type": "shell",
-                "command": "venv/Scripts/pyinstaller -F main.py -i data/lafms.ico -n LAFMS -w; rm -force LAFMS.spec; rm -recurse -force build; move dist build; copy -recurse data build",
+                "command": ".venv/Scripts/pyinstaller.exe -F src/program.py -i data/lafms.ico -n LAFMS -w; rm -force LAFMS.spec; rm -recurse -force build; move dist build; copy -recurse data build",
                 "group": {
                     "kind": "build",
                     "isDefault": false
@@ -35,7 +35,7 @@
             {
                 "label": "build: debug",
                 "type": "shell",
-                "command": "venv/Scripts/pyinstaller -F main.py -i data/lafms.ico -n LAFMS; rm -force LAFMS.spec; rm -recurse -force build; move dist build; copy -recurse data build",
+                "command": ".venv/Scripts/pyinstaller.exe -F src/program.py -i data/lafms.ico -n LAFMS; rm -force LAFMS.spec; rm -recurse -force build; move dist build; copy -recurse data build",
                 "group": {
                     "kind": "build",
                     "isDefault": false
