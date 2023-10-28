@@ -1,8 +1,6 @@
+# Builtings
 import ctypes
-import keyboard
-import mouse  # type: ignore
 import os
-import pyautogui  # type: ignore
 import string
 import sys
 import tempfile
@@ -11,37 +9,12 @@ import webbrowser
 from configparser import (
     ConfigParser,
 )
-from customtkinter import (  # type: ignore
-    set_appearance_mode,
-    CTk,
-    CTkButton,
-    CTkCheckBox,
-    CTkComboBox,
-    CTkEntry,
-    CTkFrame,
-    CTkLabel,
-    CTkProgressBar,
-    CTkScrollableFrame,
-    CTkSegmentedButton,
-    CTkSlider,
-    CTkSwitch,
-    CTkTabview,
-    CTkTextbox,
-)
 from datetime import (
     datetime,
     timedelta,
 )
 from functools import (
     wraps,
-)
-from keyboard import (
-    KeyboardEvent,
-)
-from mouse import (  # type: ignore
-    WheelEvent,
-    MoveEvent,
-    ButtonEvent,
 )
 from threading import (
     Event,
@@ -56,9 +29,44 @@ from typing import (
     Mapping,
     Union,
 )
-from win10toast import (  # type: ignore
-    ToastNotifier,
-)
+
+# Third-parties
+try:
+    import keyboard
+    import mouse  # type: ignore
+    import pyautogui  # type: ignore
+    from customtkinter import (  # type: ignore
+        set_appearance_mode,
+        CTk,
+        CTkButton,
+        CTkCheckBox,
+        CTkComboBox,
+        CTkEntry,
+        CTkFrame,
+        CTkLabel,
+        CTkProgressBar,
+        CTkScrollableFrame,
+        CTkSegmentedButton,
+        CTkSlider,
+        CTkSwitch,
+        CTkTabview,
+        CTkTextbox,
+    )
+    from keyboard import (
+        KeyboardEvent,
+    )
+    from mouse import (  # type: ignore
+        WheelEvent,
+        MoveEvent,
+        ButtonEvent,
+    )
+    from win10toast import (  # type: ignore
+        ToastNotifier,
+    )
+except ImportError as import_error:
+    print(import_error)
+    print("Run `python -m pip install --upgrade -r requirements.txt` first.")
+    exit(-1)
 
 __WINDOW_TITLE__ = "Lost Ark Flea Market Scanner"
 __PROJECT_URL__ = "https://github.com/iDkGK/LostArkFleaMarketScanner"
@@ -1087,7 +1095,12 @@ class Program(object):
 
 if __name__ == "__main__":
     if "--debug" in sys.argv or ctypes.windll.shell32.IsUserAnAdmin():
-        Program().run()
+        try:
+            Program().run()
+        except Exception as runtime_error:
+            print(runtime_error)
+            print("Contact author for help.")
+            exit(-1)
     else:
         ctypes.windll.shell32.ShellExecuteW(
             None, "runas", sys.executable, " ".join(sys.argv), None, 1
