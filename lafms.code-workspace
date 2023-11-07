@@ -41,6 +41,26 @@
                     "isDefault": false
                 },
                 "problemMatcher": []
+            },
+            {
+                "label": "build(compressed): release",
+                "type": "shell",
+                "command": ".venv/Scripts/pyinstaller.exe --upx-dir upx -F main.py -i data/lafms.ico -n LAFMS -w; rm -force LAFMS.spec; rm -recurse -force build; move dist build; copy -recurse data build",
+                "group": {
+                    "kind": "build",
+                    "isDefault": false
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "build(compressed): debug",
+                "type": "shell",
+                "command": ".venv/Scripts/pyinstaller.exe --upx-dir upx -F main.py -i data/lafms.ico -n LAFMS; rm -force LAFMS.spec; rm -recurse -force build; move dist build; copy -recurse data build",
+                "group": {
+                    "kind": "build",
+                    "isDefault": false
+                },
+                "problemMatcher": []
             }
         ]
     },
